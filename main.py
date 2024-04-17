@@ -9,16 +9,15 @@ class SchedulerApp:
         self.root.title("Scheduler Genetic Algorithm")
         self.root.geometry("500x400")
 
-        # Create and pack widgets
         self.setup_widgets()
 
     def setup_widgets(self):
-        # Labels and entries for input
         inputs = [
             ("Total de Empleados", 1, 0),
             ("Días Laborales", 1, 1),
-            ("Áreas", 1, 3),
-            ("Tamaño de Población", 1, 4),
+            ("Áreas", 1, 2),
+            ("Poblacion maxima", 1, 3),
+            ("Poblacion inicial", 1, 4),
             ("Probabilidad de Cruce", 1, 5),
             ("Probabilidad de Mutación", 1, 6),
             ("Número de Generaciones", 1, 7),
@@ -41,13 +40,14 @@ class SchedulerApp:
             total_empleados = int(self.entries["Total de Empleados"].get())
             dias_laborales = int(self.entries["Días Laborales"].get())
             areas = self.entries["Áreas"].get().split(",")
-            tamano_poblacion = int(self.entries["Tamaño de Población"].get())
+            tamano_poblacion = int(self.entries["Poblacion inicial"].get())
+            poblacion_maxima = int(self.entries["Poblacion maxima"].get())
             pc = float(self.entries["Probabilidad de Cruce"].get())
             pm = float(self.entries["Probabilidad de Mutación"].get())
             numero_generaciones = int(self.entries["Número de Generaciones"].get())
 
             scheduler_ga = SchedulerGA(
-                total_empleados, dias_laborales, areas, tamano_poblacion, pc, pm, numero_generaciones
+                total_empleados, dias_laborales, areas, tamano_poblacion, poblacion_maxima, pc, pm, numero_generaciones
             )
             scheduler_ga.algoritmo_genetico()
         except ValueError as e:

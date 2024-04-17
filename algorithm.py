@@ -2,18 +2,23 @@ import random
 import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import ttk
+from PIL import ImageGrab
+import os
+import csv
 
 class SchedulerGA:
-    def __init__(self, total_empleados, dias_laborales, areas, tamano_poblacion, pc, pm, numero_generaciones):
+    def __init__(self, total_empleados, dias_laborales, areas, tamano_poblacion, poblacion_maxima, pc, pm, numero_generaciones):
         self.total_empleados = total_empleados
         self.dias_laborales = dias_laborales
         self.turnos = 14
         self.areas = areas
         self.tamano_poblacion = tamano_poblacion
-        self.pc = pc  # Probabilidad de cruce
-        self.pm = pm  # Probabilidad de mutación
+        self.poblacion_maxima = poblacion_maxima
+        self.pc = pc
+        self.pm = pm
         self.numero_generaciones = numero_generaciones
         self.n_empleados_por_turno = self.calcular_empleados_por_turno()
+        self.folder_path = 'images'            
 
     def calcular_empleados_por_turno(self):
         return (self.total_empleados * self.dias_laborales) // self.turnos
@@ -93,9 +98,9 @@ class SchedulerGA:
                 hijo[gene1], hijo[gene2] = hijo[gene2], hijo[gene1]
         return hijos
 
-    def poda_poblacion(self, poblacion, max_poblacion=100):
+    def poda_poblacion(self, poblacion):
         poblacion.sort(key=lambda x: self.calcular_fitness(x), reverse=True)
-        return poblacion[:max_poblacion]
+        return poblacion[:self.poblacion_maxima]
 
     def algoritmo_genetico(self):
         poblacion = self.generar_poblacion_inicial()
@@ -117,6 +122,14 @@ class SchedulerGA:
             poblacion = self.poda_poblacion(poblacion)
             print(f"Generación {generacion + 1}: Mejor = {mejor_fitness}, Peor = {peor_fitness}, Promedio = {promedio_fitness}")
 
+        self.mostrar_graficas(mejores_fitness,peores_fitness,promedios_fitness)
+        self.mostrar_mejor_individuo(poblacion)
+        self.guardar_poblacion(poblacion)
+        
+    def mostrar_graficas(self,mejores_fitness,peores_fitness,promedios_fitness):
+        if not os.path.exists(self.folder_path):
+            os.makedirs(self.folder_path)
+            
         plt.figure(figsize=(10, 5))
         plt.plot(mejores_fitness, label='Mejor Fitness')
         plt.plot(peores_fitness, label='Peor Fitness')
@@ -126,11 +139,12 @@ class SchedulerGA:
         plt.ylabel('Fitness')
         plt.legend()
         plt.grid(True)
+        plt.savefig(os.path.join(self.folder_path, 'evolucion.png'))
         plt.show()
-
-        self.mostrar_mejor_individuo(poblacion)
-
+        
     def mostrar_mejor_individuo(self, poblacion):
+        if not os.path.exists(self.folder_path):
+            os.makedirs(self.folder_path)
         mejor_individuo = max(poblacion, key=self.calcular_fitness)
         window = tk.Tk()
         window.title("Mejor Individuo")
@@ -142,7 +156,7 @@ class SchedulerGA:
         turnos = ["Mañana", "Tarde"]
         for i, turno in enumerate(turnos, 1):
             ttk.Label(window, text=turno, relief="groove", borderwidth=2).grid(row=i, column=0, sticky='ewns')
-            for j in range(1, 8):  # Aseguramos que los índices no excedan el número de turnos disponibles
+            for j in range(1, 8):
                 turno_index = (i - 1) * 5 + j
                 asignaciones = mejor_individuo.get(turno_index, [])
                 asignaciones_str = '\n'.join(f"ID:{emp_id} Área:{area}" for emp_id, area in asignaciones)
@@ -150,8 +164,25 @@ class SchedulerGA:
 
         for i in range(8):
             window.grid_columnconfigure(i, weight=1)
-        window.grid_rowconfigure(0, weight=1)
+            window.grid_rowconfigure(0, weight=1)
         for i in range(1, len(turnos) + 1):
             window.grid_rowconfigure(i, weight=1)
 
+        window.update_idletasks()
+        x = window.winfo_rootx() + window.winfo_x()
+        y = window.winfo_rooty() + window.winfo_y()
+        x1 = x + window.winfo_width()
+        y1 = y + window.winfo_height()
+        ImageGrab.grab().crop((x, y, x1, y1)).save(os.path.join(self.folder_path, 'tabla.png'))
         window.mainloop()
+        
+    def guardar_poblacion(seff,poblacion, archivo='ultima_poblacion.csv'):
+        with open(archivo, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            headers = ['Cromosoma', 'Turno', 'Empleado ID', 'Area']
+            writer.writerow(headers)
+            
+            for idx, cromosoma in enumerate(poblacion):
+                for turno, asignaciones in cromosoma.items():
+                    for empleado_id, area in asignaciones:
+                        writer.writerow([idx + 1, turno, empleado_id, area])
