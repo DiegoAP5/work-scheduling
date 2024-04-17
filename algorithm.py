@@ -98,7 +98,7 @@ class AG:
                 hijo[gene1], hijo[gene2] = hijo[gene2], hijo[gene1]
         return hijos
 
-    def poda_poblacion(self, poblacion):
+    def poda(self, poblacion):
         poblacion.sort(key=lambda x: self.fitness(x), reverse=True)
         return poblacion[:self.poblacion_maxima]
 
@@ -119,7 +119,7 @@ class AG:
             hijos_mutados = self.mutacion(hijos)
             
             poblacion.extend(hijos_mutados)
-            poblacion = self.poda_poblacion(poblacion)
+            poblacion = self.poda(poblacion)
             print(f"Generación {generacion + 1}: Mejor = {mejor_fitness}, Peor = {peor_fitness}, Promedio = {promedio_fitness}")
 
         self.mostrar_graficas(mejores_fitness,peores_fitness,promedios_fitness)
