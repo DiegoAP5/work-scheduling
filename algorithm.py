@@ -2,7 +2,6 @@ import random
 import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import ttk
-from PIL import ImageGrab
 import os
 import csv
 

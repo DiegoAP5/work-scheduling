@@ -31,7 +31,6 @@ class SchedulerApp:
             entry.grid(row=row, column=column, padx=10, pady=10, sticky=tk.W)
             self.entries[label_text] = entry
         
-        # Button to run the GA
         run_button = ttk.Button(self.root, text="Ejecutar Algoritmo", command=self.run_ga)
         run_button.grid(row=len(inputs) + 1, column=1, pady=20)
 
