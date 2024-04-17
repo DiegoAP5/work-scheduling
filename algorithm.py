@@ -38,9 +38,9 @@ class SchedulerGA:
 
     def calcular_fitness(self, cromosoma):
         empleado_dias = {emp_id: set() for emp_id in range(1, self.total_empleados + 1)}
-        penalizacion_bs = 0
-        penalizacion_bh = 0
-        penalizacion_jk = 0
+        bs = 0
+        bh = 0
+        jk = 0
 
         for turno, asignaciones in cromosoma.items():
             empleados_turno = set()
@@ -49,19 +49,19 @@ class SchedulerGA:
             for empleado_id, area in asignaciones:
                 empleados_turno.add(empleado_id)
                 areas_turno[area] += 1
-                dia = (turno - 1) % 5 + 1
+                dia = (turno - 1) % 7 + 1
                 if empleado_id in empleado_dias[dia]:
-                    penalizacion_jk += 1
+                    jk += 1
                 empleado_dias[dia].add(empleado_id)
 
             if any(cant == 0 for cant in areas_turno.values()):
-                penalizacion_bh += 1
+                bh += 1
 
         for dias in empleado_dias.values():
             if len(dias) != 4:
-                penalizacion_bs += 1
+                bs += 1
 
-        fitness = 1 / (1 + (0.3 * penalizacion_bs + 0.4 * penalizacion_bh + 0.8 * penalizacion_jk))
+        fitness = 1 / (1 + (0.3 * bs + 0.4 * bh + 0.8 * jk))
         return fitness
 
     def evaluar_poblacion(self, poblacion):
@@ -143,8 +143,6 @@ class SchedulerGA:
         plt.show()
         
     def mostrar_mejor_individuo(self, poblacion):
-        if not os.path.exists(self.folder_path):
-            os.makedirs(self.folder_path)
         mejor_individuo = max(poblacion, key=self.calcular_fitness)
         window = tk.Tk()
         window.title("Mejor Individuo")
@@ -167,13 +165,6 @@ class SchedulerGA:
             window.grid_rowconfigure(0, weight=1)
         for i in range(1, len(turnos) + 1):
             window.grid_rowconfigure(i, weight=1)
-
-        window.update_idletasks()
-        x = window.winfo_rootx() + window.winfo_x()
-        y = window.winfo_rooty() + window.winfo_y()
-        x1 = x + window.winfo_width()
-        y1 = y + window.winfo_height()
-        ImageGrab.grab().crop((x, y, x1, y1)).save(os.path.join(self.folder_path, 'tabla.png'))
         window.mainloop()
         
     def guardar_poblacion(seff,poblacion, archivo='ultima_poblacion.csv'):
