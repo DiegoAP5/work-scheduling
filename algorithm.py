@@ -6,7 +6,7 @@ from PIL import ImageGrab
 import os
 import csv
 
-class SchedulerGA:
+class AG:
     def __init__(self, total_empleados, dias_laborales, areas, tamano_poblacion, poblacion_maxima, pc, pm, numero_generaciones):
         self.total_empleados = total_empleados
         self.dias_laborales = dias_laborales
@@ -36,7 +36,7 @@ class SchedulerGA:
     def generar_poblacion_inicial(self):
         return [self.generar_cromosoma() for _ in range(self.tamano_poblacion)]
 
-    def calcular_fitness(self, cromosoma):
+    def fitness(self, cromosoma):
         empleado_dias = {emp_id: set() for emp_id in range(1, self.total_empleados + 1)}
         bs = 0
         bh = 0
@@ -65,7 +65,7 @@ class SchedulerGA:
         return fitness
 
     def evaluar_poblacion(self, poblacion):
-        fitness_scores = [self.calcular_fitness(cromosoma) for cromosoma in poblacion]
+        fitness_scores = [self.fitness(cromosoma) for cromosoma in poblacion]
         mejor_fitness = max(fitness_scores)
         peor_fitness = min(fitness_scores)
         promedio_fitness = sum(fitness_scores) / len(fitness_scores)
@@ -99,7 +99,7 @@ class SchedulerGA:
         return hijos
 
     def poda_poblacion(self, poblacion):
-        poblacion.sort(key=lambda x: self.calcular_fitness(x), reverse=True)
+        poblacion.sort(key=lambda x: self.fitness(x), reverse=True)
         return poblacion[:self.poblacion_maxima]
 
     def algoritmo_genetico(self):
@@ -143,7 +143,7 @@ class SchedulerGA:
         plt.show()
         
     def mostrar_mejor_individuo(self, poblacion):
-        mejor_individuo = max(poblacion, key=self.calcular_fitness)
+        mejor_individuo = max(poblacion, key=self.fitness)
         window = tk.Tk()
         window.title("Mejor Individuo")
 

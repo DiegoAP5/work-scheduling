@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
-from algorithm import SchedulerGA
+from algorithm import AG
 
 class SchedulerApp:
     def __init__(self, root):
@@ -46,7 +46,7 @@ class SchedulerApp:
             pm = float(self.entries["Probabilidad de Mutación"].get())
             numero_generaciones = int(self.entries["Número de Generaciones"].get())
 
-            scheduler_ga = SchedulerGA(
+            scheduler_ga = AG(
                 total_empleados, dias_laborales, areas, tamano_poblacion, poblacion_maxima, pc, pm, numero_generaciones
             )
             scheduler_ga.algoritmo_genetico()
