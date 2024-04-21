@@ -1,178 +1,161 @@
+import tkinter as tk
 import random
 import matplotlib.pyplot as plt
-import tkinter as tk
-from tkinter import ttk
-import os
-import csv
+from Empleado import empleados
 
 class AG:
-    def __init__(self, total_empleados, dias_laborales, areas, tamano_poblacion, poblacion_maxima, pc, pm, numero_generaciones):
-        self.total_empleados = total_empleados
-        self.dias_laborales = dias_laborales
-        self.turnos = 14
+    def __init__(self, dias_trabajo, areas, empleados_turno, generaciones, poblacion_max, poblacion_ini, pm, pc):
+        self.dias_trabajo = dias_trabajo
         self.areas = areas
-        self.tamano_poblacion = tamano_poblacion
-        self.poblacion_maxima = poblacion_maxima
-        self.pc = pc
+        self.empleados_turno = empleados_turno
+        self.generaciones = generaciones
+        self.poblacion_max = poblacion_max
+        self.poblacion_ini = poblacion_ini
         self.pm = pm
-        self.numero_generaciones = numero_generaciones
-        self.n_empleados_por_turno = self.calcular_empleados_por_turno()
-        self.folder_path = 'images'            
+        self.pc = pc
 
-    def calcular_empleados_por_turno(self):
-        return (self.total_empleados * self.dias_laborales) // self.turnos
+    def crear_individuo(self):
+        if len(empleados) < self.empleados_turno * len(self.areas):
+            raise ValueError("No hay suficientes empleados para cubrir las áreas en un turno.")
+        
+        semana = []
+        for dia in range(1, 8):
+            dia_schedule = {'dia': dia, 'turnos': {}}
+            empleados_disponibles = empleados.copy()
+            for turno in [1, 2]:
+                turno_schedule = {}
+                random.shuffle(empleados_disponibles)
+                empleados_asignados = empleados_disponibles[:self.empleados_turno]
+                empleados_disponibles = empleados_disponibles[self.empleados_turno:]
+                
+                empleados_por_area = self.empleados_turno // len(self.areas)
+                inicio = 0
+                for area in self.areas:
+                    turno_schedule[area] = empleados_asignados[inicio:inicio + empleados_por_area]
+                    inicio += empleados_por_area
+                
+                dia_schedule['turnos'][turno] = turno_schedule
+            semana.append(dia_schedule)
+        return semana
 
-    def generar_cromosoma(self):
-        cromosoma = {}
-        for turno in range(1, self.turnos + 1):
-            cromosoma[turno] = []
-            for _ in range(self.n_empleados_por_turno):
-                area = random.choice(self.areas)
-                id_empleado = random.randint(1, self.total_empleados)
-                cromosoma[turno].append((id_empleado, area))
-        return cromosoma
+    def crear_poblacion_inicial(self):
+        return [self.crear_individuo() for _ in range(self.poblacion_ini)]
 
-    def generar_poblacion_inicial(self):
-        return [self.generar_cromosoma() for _ in range(self.tamano_poblacion)]
-
-    def fitness(self, cromosoma):
-        empleado_dias = {emp_id: set() for emp_id in range(1, self.total_empleados + 1)}
-        bs = 0
+    def calcular_fitness(self, individuo):
+        empleados_dias_trabajados = {emp['id']: 0 for emp in empleados}
         bh = 0
         jk = 0
 
-        for turno, asignaciones in cromosoma.items():
-            empleados_turno = set()
-            areas_turno = {area: 0 for area in self.areas}
-            
-            for empleado_id, area in asignaciones:
-                empleados_turno.add(empleado_id)
-                areas_turno[area] += 1
-                dia = (turno - 1) % 7 + 1
-                if empleado_id in empleado_dias[dia]:
-                    jk += 1
-                empleado_dias[dia].add(empleado_id)
+        for dia in individuo:
+            empleados_vistos = set()
+            for turno in dia['turnos'].values():
+                for area, empleados_en_area in turno.items():
+                    if len(empleados_en_area) == 0:
+                        bh += 1
+                    for emp in empleados_en_area:
+                        emp_id = emp['id']
+                        if emp_id in empleados_vistos:
+                            jk += 1
+                        empleados_vistos.add(emp_id)
+                        empleados_dias_trabajados[emp_id] += 1
 
-            if any(cant == 0 for cant in areas_turno.values()):
-                bh += 1
+        bs = sum(1 for emp_dias in empleados_dias_trabajados.values() if emp_dias != self.dias_trabajo)
 
-        for dias in empleado_dias.values():
-            if len(dias) != 4:
-                bs += 1
-
-        fitness = 1 / (1 + (0.3 * bs + 0.4 * bh + 0.8 * jk))
+        total = 0.3 * bs + 0.4 * bh + 0.8 * jk
+        fitness = 1 / (1 + total)
         return fitness
 
     def evaluar_poblacion(self, poblacion):
-        fitness_scores = [self.fitness(cromosoma) for cromosoma in poblacion]
+        fitness_scores = [self.calcular_fitness(individuo) for individuo in poblacion]
         mejor_fitness = max(fitness_scores)
         peor_fitness = min(fitness_scores)
         promedio_fitness = sum(fitness_scores) / len(fitness_scores)
         return mejor_fitness, peor_fitness, promedio_fitness
 
+    def realizar_cruza(self, padre1, padre2):
+        if random.random() < self.pc:
+            punto_cruza = random.randint(1, len(padre1) - 1)
+            hijo1 = padre1[:punto_cruza] + padre2[punto_cruza:]
+            hijo2 = padre2[:punto_cruza] + padre1[punto_cruza:]
+            return hijo1, hijo2
+        return padre1, padre2
+
     def seleccionar_para_cruza(self, poblacion):
-        padres = []
-        for individuo in poblacion:
-            if random.random() < self.pc:
-                padres.append(individuo)
-        return padres
-
-    def realizar_cruza(self, padres):
-        random.shuffle(padres)
+        seleccionados = [individuo for individuo in poblacion if random.random() < self.pc]
+        random.shuffle(seleccionados)
         hijos = []
-
-        if len(padres) > 1 and random.random() < self.pc:
-            for i in range(0, len(padres) - 1, 2):
-                punto_cruza = random.randint(1, len(padres[i]) - 1)
-                hijo1 = dict(list(padres[i].items())[:punto_cruza] + list(padres[i+1].items())[punto_cruza:])
-                hijo2 = dict(list(padres[i+1].items())[:punto_cruza] + list(padres[i].items())[punto_cruza:])
-                hijos.append(hijo1)
-                hijos.append(hijo2)
+        for i in range(0, len(seleccionados) - 1, 2):
+            nuevos_hijos = self.realizar_cruza(seleccionados[i], seleccionados[i + 1])
+            hijos.extend(nuevos_hijos)
         return hijos
 
-    def mutacion(self, hijos):
-        for hijo in hijos:
-            if random.random() < self.pm:
-                gene1, gene2 = random.sample(list(hijo.keys()), 2)
-                hijo[gene1], hijo[gene2] = hijo[gene2], hijo[gene1]
-        return hijos
+    def mutar(self, individuo):
+        if random.random() < self.pm:
+            dia_mutar = random.choice(individuo)
+            turno_mutar = random.choice(list(dia_mutar['turnos'].keys()))
+            area_mutar = random.choice(list(dia_mutar['turnos'][turno_mutar].keys()))
+
+            if len(dia_mutar['turnos'][turno_mutar][area_mutar]) > 1:
+                emp1, emp2 = random.sample(range(len(dia_mutar['turnos'][turno_mutar][area_mutar])), 2)
+                dia_mutar['turnos'][turno_mutar][area_mutar][emp1], dia_mutar['turnos'][turno_mutar][area_mutar][emp2] = \
+                    dia_mutar['turnos'][turno_mutar][area_mutar][emp2], dia_mutar['turnos'][turno_mutar][area_mutar][emp1]
+
+    def aplicar_mutacion(self, poblacion):
+        for individuo in poblacion:
+            self.mutar(individuo)
 
     def poda(self, poblacion):
-        poblacion.sort(key=lambda x: self.fitness(x), reverse=True)
-        return poblacion[:self.poblacion_maxima]
+        unique_poblacion = {str(ind): ind for ind in poblacion}.values()
+        sorted_poblacion = sorted(unique_poblacion, key=lambda x: self.calcular_fitness(x), reverse=True)
+        return sorted_poblacion[:self.poblacion_max]
 
-    def algoritmo_genetico(self):
-        poblacion = self.generar_poblacion_inicial()
-        mejores_fitness = []
-        peores_fitness = []
-        promedios_fitness = []
+    def ejecutar_algoritmo(self):
+        poblacion = self.crear_poblacion_inicial()
+        estadisticas = {'mejor': [], 'peor': [], 'promedio': []}
 
-        for generacion in range(self.numero_generaciones):
-            mejor_fitness, peor_fitness, promedio_fitness = self.evaluar_poblacion(poblacion)
-            mejores_fitness.append(mejor_fitness)
-            peores_fitness.append(peor_fitness)
-            promedios_fitness.append(promedio_fitness)
-            
-            padres = self.seleccionar_para_cruza(poblacion)
-            hijos = self.realizar_cruza(padres)
-            hijos_mutados = self.mutacion(hijos)
-            
-            poblacion.extend(hijos_mutados)
+        for _ in range(self.generaciones):
             poblacion = self.poda(poblacion)
-            print(f"Generación {generacion + 1}: Mejor = {mejor_fitness}, Peor = {peor_fitness}, Promedio = {promedio_fitness}")
-
-        self.mostrar_graficas(mejores_fitness,peores_fitness,promedios_fitness)
-        self.mostrar_mejor_individuo(poblacion)
-        self.guardar_poblacion(poblacion)
-        
-    def mostrar_graficas(self,mejores_fitness,peores_fitness,promedios_fitness):
-        if not os.path.exists(self.folder_path):
-            os.makedirs(self.folder_path)
+            hijos = self.seleccionar_para_cruza(poblacion)
+            self.aplicar_mutacion(hijos)
             
+            poblacion.extend(hijos)
+            
+            mejor, peor, promedio = self.evaluar_poblacion(poblacion)
+            estadisticas['mejor'].append(mejor)
+            estadisticas['peor'].append(peor)
+            estadisticas['promedio'].append(promedio)
+
         plt.figure(figsize=(10, 5))
-        plt.plot(mejores_fitness, label='Mejor Fitness')
-        plt.plot(peores_fitness, label='Peor Fitness')
-        plt.plot(promedios_fitness, label='Promedio Fitness')
-        plt.title('Evolución del Fitness por Generación')
+        plt.plot(estadisticas['mejor'], label='Mejor Fitness')
+        plt.plot(estadisticas['peor'], label='Peor Fitness')
+        plt.plot(estadisticas['promedio'], label='Promedio Fitness')
         plt.xlabel('Generación')
         plt.ylabel('Fitness')
+        plt.title('Evolución del Algoritmo Genético')
         plt.legend()
-        plt.grid(True)
-        plt.savefig(os.path.join(self.folder_path, 'evolucion.png'))
-        plt.show()
-        
-    def mostrar_mejor_individuo(self, poblacion):
-        mejor_individuo = max(poblacion, key=self.fitness)
-        window = tk.Tk()
-        window.title("Mejor Individuo")
+        plt.show()       
+        return poblacion[0]
 
-        headers = ["Turno", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-        for i, header in enumerate(headers):
-            ttk.Label(window, text=header, relief="groove", borderwidth=2).grid(row=0, column=i, sticky='ewns')
+    def mostrar_mejor_individuo(self, mejor_individuo):
+        root = tk.Tk()
+        root.title("Mejor Horario")
+        for dia in mejor_individuo:
+            frame_dia = tk.Frame(root, borderwidth=2, relief="solid")
+            frame_dia.pack(side="left", expand=True, fill="both")
+            tk.Label(frame_dia, text=f"Día {dia['dia']}").pack()
 
-        turnos = ["Mañana", "Tarde"]
-        for i, turno in enumerate(turnos, 1):
-            ttk.Label(window, text=turno, relief="groove", borderwidth=2).grid(row=i, column=0, sticky='ewns')
-            for j in range(1, 8):
-                turno_index = (i - 1) * 5 + j
-                asignaciones = mejor_individuo.get(turno_index, [])
-                asignaciones_str = '\n'.join(f"ID:{emp_id} Área:{area}" for emp_id, area in asignaciones)
-                ttk.Label(window, text=asignaciones_str, relief="groove", borderwidth=2).grid(row=i, column=j, sticky='ewns')
+            for turno_id, turno in dia['turnos'].items():
+                turno_nombre = "Mañana" if turno_id == 1 else "Tarde"
+                frame_turno = tk.Frame(frame_dia, borderwidth=2, relief="solid")
+                frame_turno.pack(expand=True, fill="both")
+                tk.Label(frame_turno, text=turno_nombre).pack()
 
-        for i in range(8):
-            window.grid_columnconfigure(i, weight=1)
-            window.grid_rowconfigure(0, weight=1)
-        for i in range(1, len(turnos) + 1):
-            window.grid_rowconfigure(i, weight=1)
-        window.mainloop()
-        
-    def guardar_poblacion(seff,poblacion, archivo='ultima_poblacion.csv'):
-        with open(archivo, mode='w', newline='') as file:
-            writer = csv.writer(file)
-            headers = ['Cromosoma', 'Turno', 'Empleado ID', 'Area']
-            writer.writerow(headers)
-            
-            for idx, cromosoma in enumerate(poblacion):
-                for turno, asignaciones in cromosoma.items():
-                    for empleado_id, area in asignaciones:
-                        writer.writerow([idx + 1, turno, empleado_id, area])
+                for area, empleados in turno.items():
+                    frame_area = tk.Frame(frame_turno, borderwidth=1, relief="solid")
+                    frame_area.pack(expand=True, fill="both")
+                    tk.Label(frame_area, text=f"Área {area}").pack()
+
+                    for emp in empleados:
+                        tk.Label(frame_area, text=f"ID {emp['id']}x").pack()
+
+        root.mainloop()
